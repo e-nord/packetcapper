@@ -139,6 +139,10 @@ public class PixelsView extends SurfaceView {
         mActive = false;
     }
 
+    public void destroy(){
+        stopLoop();
+    }
+
 //    @Override
 //    public boolean onTouchEvent(MotionEvent event) {
 //        boolean handled = false;

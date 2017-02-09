@@ -8,6 +8,7 @@ import android.os.SystemClock;
 import android.util.Log;
 
 import java.io.File;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 
@@ -131,15 +132,25 @@ public class PacketCapper {
                 });
     }
 
-    private int findPID(String executable) {
+    private static List<Integer> findPIDs(String executable) {
+        List<Integer> pids = new LinkedList<>();
         List<String> output = Shell.SU.run("ps");
         for (String line : output) {
             if (line.contains(executable)) {
                 String[] parts = line.split("\\s+");
-                return Integer.parseInt(parts[1]);
+                pids.add(Integer.parseInt(parts[1]));
             }
         }
-        return PID_UNKNOWN;
+        return pids;
+    }
+
+    private static int findPID(String executable){
+        List<Integer> pids = findPIDs(executable);
+        if(pids.isEmpty()){
+            return PID_UNKNOWN;
+        } else {
+            return pids.get(0);
+        }
     }
 
     private void startCapture(final CaptureOptions options) {
@@ -176,13 +187,28 @@ public class PacketCapper {
         }
     }
 
+    public static String getCaptureFileName(){
+        return "test.pcap";
+    }
+
     private void stopCapture() {
         if (mShell != null) {
             if (mPid != PID_UNKNOWN) {
-                Shell.SU.run(String.format(Locale.getDefault(), "kill INT %d", mPid));
+                kill(mPid);
             }
             mShell.close();
             mShell = null;
+        }
+    }
+
+    public static void kill(int pid){
+        Shell.SU.run(String.format(Locale.getDefault(), "kill INT %d", pid));
+    }
+
+    public static void killAll(Context context){
+        List<Integer> pids = findPIDs(getTCPDumpExecutable(context).getAbsolutePath());
+        for(int pid : pids){
+            kill(pid);
         }
     }
 

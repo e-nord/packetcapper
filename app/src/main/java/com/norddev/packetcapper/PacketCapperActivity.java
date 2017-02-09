@@ -1,10 +1,11 @@
 package com.norddev.packetcapper;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.SystemClock;
+import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.text.format.Formatter;
 import android.util.Log;
@@ -17,7 +18,6 @@ import android.widget.TextView;
 
 import com.afollestad.materialdialogs.MaterialDialog;
 import com.dd.CircularProgressButton;
-import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
 import com.google.firebase.analytics.FirebaseAnalytics;
 import com.norddev.packetcapper.iap.IabHelper;
@@ -25,7 +25,9 @@ import com.norddev.packetcapper.iap.IabResult;
 import com.norddev.packetcapper.iap.Inventory;
 import com.norddev.packetcapper.iap.Purchase;
 import com.orhanobut.hawk.Hawk;
-import com.orhanobut.hawk.NoEncryption;
+
+import net.rdrei.android.dirchooser.DirectoryChooserConfig;
+import net.rdrei.android.dirchooser.DirectoryChooserFragment;
 
 import java.io.File;
 import java.util.Locale;
@@ -35,13 +37,16 @@ import java.util.TreeMap;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import eu.chainfire.libsuperuser.Shell;
-import ir.sohreco.androidfilechooser.ExternalStorageNotAvailableException;
-import ir.sohreco.androidfilechooser.FileChooserDialog;
+import permissions.dispatcher.NeedsPermission;
+import permissions.dispatcher.OnPermissionDenied;
+import permissions.dispatcher.RuntimePermissions;
 
-public class PacketCapperActivity extends AppCompatActivity {
+@RuntimePermissions
+public class PacketCapperActivity extends AppCompatActivity implements
+        DirectoryChooserFragment.OnFragmentInteractionListener {
 
     private static final String TAG = "PacketCapperActivity";
-    private static final String PREF_KEY_OUTPUT_DIRECTORY = "output_dir";
+    public static final String PREF_KEY_OUTPUT_DIRECTORY = "output_dir";
     private static final String PUBLIC_KEY = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAgKPmaK3l3/zjg8Gi76joeQmwY" +
             "RioqAxQ0kGG9jHuQjWTo94aCESyVR/bRWpgtDOzKNEWRoCOAtZJGt2odunf6SpWP91tcQ1l8n8LLAoYNDgEa8qXEOO9w9CGwcqEOMj" +
             "7eyC6xZAzjSKY2JfTHuKsWc3ChyV6IBXgyj40cxbFu9QKFQrzatCidJF6wnTQQUSAwQjMRPbxQ2F89fTQRGL3iZbEOpxxGp+gqj50+" +
@@ -68,11 +73,11 @@ public class PacketCapperActivity extends AppCompatActivity {
     private IabHelper mHelper;
     private Map<Integer, Float> mRateToFrequency;
     private boolean mRemoveAds;
+    private DirectoryChooserFragment mDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Hawk.init(this).setEncryption(new NoEncryption()).build();
         setContentView(R.layout.activity_packet_capper);
         ButterKnife.bind(this);
         checkForSU();
@@ -102,34 +107,38 @@ public class PacketCapperActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.menu_remove_ads) {
             purchaseRemoveAds();
-        } else {
-            try {
-                showDirectoryChooser();
-            } catch (ExternalStorageNotAvailableException e) {
-                e.printStackTrace();
-            }
+        } else if(item.getItemId() == R.id.menu_set_output_directory){
+            showDirectoryChooser();
+        } else if(item.getItemId() == R.id.menu_set_capture_args){
+            showCaptureArgsEditor();
         }
         return super.onOptionsItemSelected(item);
     }
 
-    private void showDirectoryChooser() throws ExternalStorageNotAvailableException {
-        FileChooserDialog.ChooserListener listener = new FileChooserDialog.ChooserListener() {
-            @Override
-            public void onSelect(String path) {
-                System.out.println("Selected " + path);
-                Hawk.put(PREF_KEY_OUTPUT_DIRECTORY, path);
-            }
-        };
-        FileChooserDialog.Builder builder =
-                new FileChooserDialog.Builder(FileChooserDialog.ChooserType.DIRECTORY_CHOOSER, listener)
-                        .setTitle("Select a directory:")
-                        .setInitialDirectory(Environment.getExternalStorageDirectory())
-                        .setSelectDirectoryButtonText("ENTEKHAB")
-                        .setSelectDirectoryButtonTextSize(25)
-                        .setFileIcon(R.drawable.ic_file)
-                        .setDirectoryIcon(R.drawable.ic_directory)
-                        .setPreviousDirectoryButtonIcon(R.drawable.ic_prev_dir);
-        builder.build().show(getSupportFragmentManager(), null);
+    private void showCaptureArgsEditor() {
+
+    }
+
+    @Override
+    public void onSelectDirectory(@NonNull String path) {
+        System.out.println("Selected " + path);
+        Hawk.put(PREF_KEY_OUTPUT_DIRECTORY, path);
+        mDialog.dismiss();
+    }
+
+    @Override
+    public void onCancelChooser() {
+        mDialog.dismiss();
+    }
+
+    private void showDirectoryChooser() {
+        final DirectoryChooserConfig config = DirectoryChooserConfig.builder()
+                .newDirectoryName("packetcapper")
+                .allowNewDirectoryNameModification(true)
+                .initialDirectory((String)Hawk.get(PREF_KEY_OUTPUT_DIRECTORY))
+                .build();
+        mDialog = DirectoryChooserFragment.newInstance(config);
+        mDialog.show(getFragmentManager(), null);
     }
 
     @Override
@@ -141,7 +150,15 @@ public class PacketCapperActivity extends AppCompatActivity {
         mHelper.handleActivityResult(requestCode, resultCode, data);
     }
 
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        PacketCapperActivityPermissionsDispatcher.onRequestPermissionsResult(this, requestCode, grantResults);
+    }
+
     private void cleanup() {
+        mPixelsView.destroy();
+        mAdView.destroy();
         if (mHelper != null) {
             mHelper.disposeWhenFinished();
             mHelper = null;
@@ -170,15 +187,19 @@ public class PacketCapperActivity extends AppCompatActivity {
         return new Intent(context, PacketCapperActivity.class);
     }
 
-    private void startCapture() {
+    @NeedsPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+    public void startCapture() {
+        //start the timer now instead of waiting for the capture to boot up
+        mChronometer.setBase(SystemClock.elapsedRealtime());
         String outputDirPath = Hawk.get(PREF_KEY_OUTPUT_DIRECTORY);
-        if(outputDirPath != null) {
-            File outputFile = new File(outputDirPath, "test.pcap");
-            PacketCapper.CaptureOptions options = new PacketCapper.CaptureOptions(outputFile);
-            mPacketCapper.capture(options);
-        } else {
-            //TODO
-        }
+        File outputFile = new File(outputDirPath, PacketCapper.getCaptureFileName());
+        PacketCapper.CaptureOptions options = new PacketCapper.CaptureOptions(outputFile);
+        mPacketCapper.capture(options);
+    }
+
+    @OnPermissionDenied(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+    public void onPermissionsDenied(){
+        mCaptureButton.setProgress(-1);
     }
 
     private void stopCapture() {
@@ -190,8 +211,7 @@ public class PacketCapperActivity extends AppCompatActivity {
             mCaptureButton.setProgress(0);
         } else if (mCaptureButton.getProgress() == 0) { //idle to running
             mCaptureButton.setProgress(1);
-            mChronometer.setBase(SystemClock.elapsedRealtime());
-            startCapture();
+            PacketCapperActivityPermissionsDispatcher.startCaptureWithCheck(this);
         } else if (mCaptureButton.getProgress() == 100) { //running to idle
             mCaptureButton.setProgress(0);
             stopCapture();
@@ -354,8 +374,8 @@ public class PacketCapperActivity extends AppCompatActivity {
     }
 
     private void loadAd() {
-        AdRequest adRequest = new AdRequest.Builder().build();
-        mAdView.loadAd(adRequest);
+        //AdRequest adRequest = new AdRequest.Builder().build();
+        //mAdView.loadAd(adRequest);
     }
 
     private void removeAd() {
