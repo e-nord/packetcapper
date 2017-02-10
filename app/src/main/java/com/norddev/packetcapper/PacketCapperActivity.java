@@ -3,6 +3,7 @@ package com.norddev.packetcapper;
 import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.support.annotation.NonNull;
@@ -17,9 +18,11 @@ import android.widget.Chronometer;
 import android.widget.TextView;
 
 import com.afollestad.materialdialogs.MaterialDialog;
-import com.dd.CircularProgressButton;
+import com.androidadvance.topsnackbar.TSnackbar;
+import com.dd.PacketCaptureButton;
 import com.google.android.gms.ads.AdView;
 import com.google.firebase.analytics.FirebaseAnalytics;
+import com.marcoscg.easylicensesdialog.EasyLicensesDialogCompat;
 import com.norddev.packetcapper.iap.IabHelper;
 import com.norddev.packetcapper.iap.IabResult;
 import com.norddev.packetcapper.iap.Inventory;
@@ -37,6 +40,7 @@ import java.util.TreeMap;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import eu.chainfire.libsuperuser.Shell;
+import fr.nicolaspomepuy.discreetapprate.AppRate;
 import permissions.dispatcher.NeedsPermission;
 import permissions.dispatcher.OnPermissionDenied;
 import permissions.dispatcher.RuntimePermissions;
@@ -55,9 +59,9 @@ public class PacketCapperActivity extends AppCompatActivity implements
     private static final String SKU_AD_FREE = "feature.ad_free";
 
     @BindView(R.id.capture_button)
-    CircularProgressButton mCaptureButton;
+    PacketCaptureButton mCaptureButton;
     @BindView(R.id.time_elapsed)
-    Chronometer mChronometer;
+    Chronometer mElapsedTimer;
     @BindView(R.id.capture_size)
     TextView mCapturedBytesCount;
     @BindView(R.id.pixels_view)
@@ -74,6 +78,7 @@ public class PacketCapperActivity extends AppCompatActivity implements
     private Map<Integer, Float> mRateToFrequency;
     private boolean mRemoveAds;
     private DirectoryChooserFragment mDialog;
+    private TSnackbar mSnackbar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,6 +88,10 @@ public class PacketCapperActivity extends AppCompatActivity implements
         checkForSU();
         extractTCPDump();
         init();
+        AppRate.with(this)
+                .text(getString(R.string.rate_it))
+                .fromTop(true)
+                .checkAndShow();
     }
 
     @Override
@@ -97,20 +106,42 @@ public class PacketCapperActivity extends AppCompatActivity implements
         return true;
     }
 
+    private void showAbout(){
+        new EasyLicensesDialogCompat(this)
+                .setTitle("Licenses")
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
+    }
+
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
         menu.findItem(R.id.menu_remove_ads).setVisible(!mRemoveAds);
         return super.onPrepareOptionsMenu(menu);
     }
 
+    private void showAppRating(){
+        Intent intent = new Intent("android.intent.action.VIEW", Uri.parse("market://details?id=" + getPackageName()));
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(intent);
+    }
+
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.menu_remove_ads) {
             purchaseRemoveAds();
+            return true;
         } else if(item.getItemId() == R.id.menu_set_output_directory){
             showDirectoryChooser();
+            return true;
         } else if(item.getItemId() == R.id.menu_set_capture_args){
             showCaptureArgsEditor();
+            return true;
+        } else if(item.getItemId() == R.id.menu_rate_app){
+            showAppRating();
+            return true;
+        } else if(item.getItemId() == R.id.menu_about){
+            showAbout();
+            return true;
         }
         return super.onOptionsItemSelected(item);
     }
@@ -121,9 +152,15 @@ public class PacketCapperActivity extends AppCompatActivity implements
 
     @Override
     public void onSelectDirectory(@NonNull String path) {
-        System.out.println("Selected " + path);
+        Log.i(TAG, "Selected output directory: " + path);
         Hawk.put(PREF_KEY_OUTPUT_DIRECTORY, path);
         mDialog.dismiss();
+    }
+
+    private void dismissSnackbar(){
+        if(mSnackbar != null){
+            mSnackbar.dismiss();
+        }
     }
 
     @Override
@@ -189,8 +226,9 @@ public class PacketCapperActivity extends AppCompatActivity implements
 
     @NeedsPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
     public void startCapture() {
+        Log.i(TAG, "Starting capture");
         //start the timer now instead of waiting for the capture to boot up
-        mChronometer.setBase(SystemClock.elapsedRealtime());
+        mElapsedTimer.setBase(SystemClock.elapsedRealtime());
         String outputDirPath = Hawk.get(PREF_KEY_OUTPUT_DIRECTORY);
         File outputFile = new File(outputDirPath, PacketCapper.getCaptureFileName());
         PacketCapper.CaptureOptions options = new PacketCapper.CaptureOptions(outputFile);
@@ -199,38 +237,33 @@ public class PacketCapperActivity extends AppCompatActivity implements
 
     @OnPermissionDenied(Manifest.permission.WRITE_EXTERNAL_STORAGE)
     public void onPermissionsDenied(){
-        mCaptureButton.setProgress(-1);
+        mCaptureButton.setProgress(PacketCaptureButton.ERROR_STATE_PROGRESS);
     }
 
     private void stopCapture() {
+        Log.i(TAG, "Stopping capture");
         mPacketCapper.stop();
     }
 
     private void onCaptureButtonClick() {
-        if (mCaptureButton.getProgress() == -1) { //error to idle
-            mCaptureButton.setProgress(0);
-        } else if (mCaptureButton.getProgress() == 0) { //idle to running
-            mCaptureButton.setProgress(1);
+        int progress = mCaptureButton.getProgress();
+        if (progress == PacketCaptureButton.ERROR_STATE_PROGRESS) { //error to idle
+            mCaptureButton.setProgress(PacketCaptureButton.INDETERMINATE_STATE_PROGRESS);
+            dismissSnackbar();
+            stopCapture();
+        } else if (progress == PacketCaptureButton.IDLE_STATE_PROGRESS) { //idle to running
+            mCaptureButton.setProgress(PacketCaptureButton.INDETERMINATE_STATE_PROGRESS);
             PacketCapperActivityPermissionsDispatcher.startCaptureWithCheck(this);
-        } else if (mCaptureButton.getProgress() == 100) { //running to idle
-            mCaptureButton.setProgress(0);
+        } else if (progress == PacketCaptureButton.SUCCESS_STATE_PROGRESS) { //running to idle
+            mCaptureButton.setProgress(PacketCaptureButton.INDETERMINATE_STATE_PROGRESS);
             stopCapture();
         }
     }
 
     private void init() {
         mNetworkRate.setVisibility(View.INVISIBLE);
-        mChronometer.setVisibility(View.INVISIBLE);
+        mElapsedTimer.setVisibility(View.INVISIBLE);
         mCapturedBytesCount.setVisibility(View.INVISIBLE);
-
-        if(Hawk.get(PREF_KEY_OUTPUT_DIRECTORY) == null){
-            File extDir = getExternalFilesDir(null);
-            if(extDir != null) {
-                Hawk.put(PREF_KEY_OUTPUT_DIRECTORY, extDir.getAbsolutePath());
-            } else {
-                //TODO
-            }
-        }
 
         mCaptureButton.setIndeterminateProgressMode(true);
         mCaptureButton.setOnClickListener(new View.OnClickListener() {
@@ -240,7 +273,7 @@ public class PacketCapperActivity extends AppCompatActivity implements
             }
         });
 
-        mChronometer.setOnChronometerTickListener(new Chronometer.OnChronometerTickListener() {
+        mElapsedTimer.setOnChronometerTickListener(new Chronometer.OnChronometerTickListener() {
             @Override
             public void onChronometerTick(Chronometer chronometer) {
                 if (mCaptureFile != null) {
@@ -261,17 +294,21 @@ public class PacketCapperActivity extends AppCompatActivity implements
                 float frequency = mRateToFrequency.get(rate);
                 mPixelsView.setFrequency(frequency);
                 mNetworkRate.setText(TrafficMeter.formatNetworkRate(kbps));
-                System.out.println("KBPS = " + kbps + " FREQ = " + frequency);
             }
         });
 
         mPacketCapper = new PacketCapper(this);
         mPacketCapper.setListener(new PacketCapper.EventListener() {
             @Override
-            public void onError() {
+            public void onError(String msg) {
                 Log.i(TAG, "Capture error");
-                mCaptureButton.setProgress(-1);
-                mChronometer.stop();
+                mFirebaseAnalytics.logEvent("capture_error", null);
+                if(msg != null) {
+                    mSnackbar = TSnackbar.make(mPixelsView, msg, TSnackbar.LENGTH_INDEFINITE);
+                    mSnackbar.show();
+                }
+                mCaptureButton.setProgress(PacketCaptureButton.ERROR_STATE_PROGRESS);
+                mElapsedTimer.stop();
                 trafficMeter.stop();
                 mCaptureFile = null;
                 PacketCapperService.stop(getApplicationContext());
@@ -280,14 +317,14 @@ public class PacketCapperActivity extends AppCompatActivity implements
 
             @Override
             public void onStart(PacketCapper.CaptureFile captureFile) {
-                mFirebaseAnalytics.logEvent("capture_started", null);
                 Log.i(TAG, "Capture started");
+                mFirebaseAnalytics.logEvent("capture_started", null);
                 mCaptureFile = captureFile;
-                mCaptureButton.setProgress(100);
-                mChronometer.setBase(SystemClock.elapsedRealtime());
-                mChronometer.start();
+                mCaptureButton.setProgress(PacketCaptureButton.SUCCESS_STATE_PROGRESS);
+                mElapsedTimer.setBase(SystemClock.elapsedRealtime());
+                mElapsedTimer.start();
                 trafficMeter.start();
-                mChronometer.setVisibility(View.VISIBLE);
+                mElapsedTimer.setVisibility(View.VISIBLE);
                 mNetworkRate.setVisibility(View.VISIBLE);
                 mCapturedBytesCount.setVisibility(View.VISIBLE);
                 PacketCapperService.start(getApplicationContext());
@@ -297,8 +334,8 @@ public class PacketCapperActivity extends AppCompatActivity implements
             @Override
             public void onStop() {
                 Log.i(TAG, "Capture stopped");
-                mCaptureButton.setProgress(0);
-                mChronometer.stop();
+                mCaptureButton.setProgress(PacketCaptureButton.IDLE_STATE_PROGRESS);
+                mElapsedTimer.stop();
                 trafficMeter.stop();
                 mNetworkRate.setVisibility(View.INVISIBLE);
                 mCaptureFile = null;

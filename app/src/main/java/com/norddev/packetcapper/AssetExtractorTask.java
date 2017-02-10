@@ -2,6 +2,7 @@ package com.norddev.packetcapper;
 
 import android.content.Context;
 import android.os.AsyncTask;
+import android.widget.Toast;
 
 import com.afollestad.materialdialogs.MaterialDialog;
 
@@ -30,7 +31,7 @@ public class AssetExtractorTask extends AsyncTask<File,Void,Exception> {
             AssetExtractor extractor = new AssetExtractor(mContext);
             extractor.extract(mAssetPath, params[0]);
             if(mMakeExecutable) {
-                ProcessBuilder builder = new ProcessBuilder("chmod", "+x", params[0].getAbsolutePath());
+                ProcessBuilder builder = new ProcessBuilder("chmod", "755", params[0].getAbsolutePath());
                 Process process = builder.start();
                 process.waitFor();
                 if (process.exitValue() != 0) {
@@ -55,6 +56,10 @@ public class AssetExtractorTask extends AsyncTask<File,Void,Exception> {
 
     @Override
     protected void onPostExecute(Exception e) {
+        if(e != null){
+            e.printStackTrace();
+            Toast.makeText(mContext, "Failed to extract tcpdump executable: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
         mDialog.dismiss();
     }
 }

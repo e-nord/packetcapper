@@ -8,6 +8,7 @@ import android.os.SystemClock;
 import android.util.Log;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
@@ -23,11 +24,12 @@ public class PacketCapper {
     private Shell.Interactive mShell;
     private EventListener mListener;
     private int mPid;
+    private boolean mIsStopped;
 
     private static final int PID_UNKNOWN = -1;
 
     public interface EventListener {
-        void onError();
+        void onError(String msg);
 
         void onStart(CaptureFile captureFile);
 
@@ -95,12 +97,12 @@ public class PacketCapper {
         }
     }
 
-    private void notifyError(final EventListener listener) {
+    private void notifyError(final EventListener listener, final String msg) {
         if (listener != null) {
             mMainHandler.post(new Runnable() {
                 @Override
                 public void run() {
-                    listener.onError();
+                    listener.onError(msg);
                 }
             });
         }
@@ -117,6 +119,21 @@ public class PacketCapper {
         }
     }
 
+    private String getOutput(List<String> output){
+        String result = null;
+        if(output != null) {
+            StringBuilder builder = new StringBuilder();
+            for (String line : output) {
+                builder.append(line);
+            }
+            result = builder.toString().trim();
+            if(result.isEmpty()){
+                result = null;
+            }
+        }
+        return result;
+    }
+
     private Shell.Interactive openRootShell() {
         return new Shell.Builder().
                 useSU().
@@ -126,7 +143,14 @@ public class PacketCapper {
                     @Override
                     public void onCommandResult(int commandCode, int exitCode, List<String> output) {
                         if (exitCode != Shell.OnCommandResultListener.SHELL_RUNNING) {
-                            notifyError(mListener);
+                            String msg = getOutput(output);
+                            if(msg != null){
+                                msg = "Shell: " + msg;
+                                Log.e(TAG, msg);
+                            }
+                            if(!mIsStopped) {
+                                notifyError(mListener, msg);
+                            }
                         }
                     }
                 });
@@ -135,10 +159,12 @@ public class PacketCapper {
     private static List<Integer> findPIDs(String executable) {
         List<Integer> pids = new LinkedList<>();
         List<String> output = Shell.SU.run("ps");
-        for (String line : output) {
-            if (line.contains(executable)) {
-                String[] parts = line.split("\\s+");
-                pids.add(Integer.parseInt(parts[1]));
+        if(output != null) {
+            for (String line : output) {
+                if (line.contains(executable)) {
+                    String[] parts = line.split("\\s+");
+                    pids.add(Integer.parseInt(parts[1]));
+                }
             }
         }
         return pids;
@@ -156,30 +182,32 @@ public class PacketCapper {
     private void startCapture(final CaptureOptions options) {
         if (mShell == null) {
             mPid = PID_UNKNOWN;
+            mIsStopped = false;
             mShell = openRootShell();
             if(options.getOutputFile().exists() && !options.getOutputFile().delete()){
-                System.out.println("Failed to delete existing output file");
+                Log.e(TAG, "Failed to delete existing output file");
             }
-            String cmd = String.format(Locale.getDefault(), "%s -s 0 -w %s", getTCPDumpExecutable(mContext).getAbsolutePath(), options.getOutputFile());
-            mShell.addCommand(cmd, 1, new Shell.OnCommandLineListener() {
+            String args = String.format(Locale.US, "-s 0 -U -w %s", options.getOutputFile());
+            String cmd = String.format(Locale.US, "%s %s", getTCPDumpExecutable(mContext).getAbsolutePath(), args);
+            mShell.addCommand(cmd, 1, new Shell.OnCommandResultListener() {
                 @Override
-                public void onCommandResult(int commandCode, int exitCode) {
-                    if (exitCode < 0) {
-                        notifyError(mListener);
-                    } else {
-                        notifyStop(mListener);
+                public void onCommandResult(int commandCode, int exitCode, List<String> output) {
+                    if (exitCode != 0) {
+                        String msg = getOutput(output);
+                        if(msg != null){
+                            msg = "Capture: " + msg;
+                            Log.e(TAG, msg);
+                        }
+                        if(!mIsStopped) {
+                            notifyError(mListener, msg);
+                        }
                     }
-                }
-
-                @Override
-                public void onLine(String line) {
-                    System.out.println(line);
                 }
             });
             SystemClock.sleep(1000);
             mPid = findPID(getTCPDumpExecutable(mContext).getAbsolutePath());
             if (mPid == PID_UNKNOWN) {
-                notifyError(mListener);
+                notifyError(mListener, "Failed to find spawned process PID");
             } else {
                 Log.d(TAG, "PID = " + mPid);
                 notifyStart(mListener, new CaptureFile(options.getOutputFile()));
@@ -196,9 +224,12 @@ public class PacketCapper {
             if (mPid != PID_UNKNOWN) {
                 kill(mPid);
             }
+            mIsStopped = true;
             mShell.close();
             mShell = null;
+            SystemClock.sleep(1000);
         }
+        notifyStop(mListener);
     }
 
     public static void kill(int pid){
@@ -220,8 +251,7 @@ public class PacketCapper {
         }
 
         public long getCaptureSize(){
-            long size = mOutputFile.length();
-            return size;
+            return mOutputFile.length();
         }
     }
 }

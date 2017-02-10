@@ -10,6 +10,7 @@ public class TrafficMeter {
     private final Handler mHandler;
     private final Listener mListener;
     private boolean mIsRunning;
+    private long mLastTotalBytes;
 
     public interface Listener {
         void onTrafficRateSampled(int kbps);
@@ -32,12 +33,15 @@ public class TrafficMeter {
         return String.format(Locale.US, "%d %s", kbps, suffix);
     }
 
+    private long getTotalIOBytes(){
+        return TrafficStats.getTotalRxBytes() + TrafficStats.getTotalTxBytes();
+    }
+
     private final Runnable mRunnable = new Runnable() {
-        private long mLastTotalBytes = TrafficStats.getTotalRxBytes() + TrafficStats.getTotalTxBytes();
         @Override
         public void run() {
             if(mIsRunning) {
-                long currentTotalBytes = TrafficStats.getTotalRxBytes() + TrafficStats.getTotalTxBytes();
+                long currentTotalBytes = getTotalIOBytes();
                 int kbps = (int) (((currentTotalBytes - mLastTotalBytes) * 8.0) / 1000);
                 mLastTotalBytes = currentTotalBytes;
                 mListener.onTrafficRateSampled(kbps);
@@ -49,6 +53,7 @@ public class TrafficMeter {
     public void start(){
         if(!mIsRunning) {
             mIsRunning = true;
+            mLastTotalBytes = getTotalIOBytes();
             mHandler.postDelayed(mRunnable, 1000);
         }
     }

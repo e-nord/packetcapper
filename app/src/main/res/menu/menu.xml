@@ -2,15 +2,23 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
       xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
-        android:id="@+id/menu_remove_ads"
-        android:title="@string/remove_ads"
-        app:showAsAction="never"/>
-    <item
         android:id="@+id/menu_set_output_directory"
         android:title="@string/set_output_directory"
         app:showAsAction="never"/>
     <item
         android:id="@+id/menu_set_capture_args"
         android:title="@string/set_capture_args"
+        app:showAsAction="never"/>
+    <item
+        android:id="@+id/menu_remove_ads"
+        android:title="@string/remove_ads"
+        app:showAsAction="never"/>
+    <item
+        android:id="@+id/menu_rate_app"
+        android:title="@string/rate_app"
+        app:showAsAction="never"/>
+    <item
+        android:id="@+id/menu_about"
+        android:title="@string/about"
         app:showAsAction="never"/>
 </menu>

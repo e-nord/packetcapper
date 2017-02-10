@@ -12,7 +12,9 @@ public class PacketCapperApplication extends Application {
         super.onCreate();
 
         Hawk.init(this).setEncryption(new NoEncryption()).build();
-        Hawk.put(PacketCapperActivity.PREF_KEY_OUTPUT_DIRECTORY, Environment.getExternalStorageDirectory().getAbsolutePath());
+        if(!Hawk.contains(PacketCapperActivity.PREF_KEY_OUTPUT_DIRECTORY)) {
+            Hawk.put(PacketCapperActivity.PREF_KEY_OUTPUT_DIRECTORY, Environment.getExternalStorageDirectory().getAbsolutePath());
+        }
         Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
             @Override
             public void run() {

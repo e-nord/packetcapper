@@ -46,11 +46,10 @@ public class PacketCapperService extends Service {
     }
 
     private void showNotification(){
-        mBuilder.setSmallIcon(android.R.drawable.ic_dialog_info);
         mBuilder.setPriority(Notification.PRIORITY_MIN);
         mBuilder.setOngoing(true);
-        mBuilder.setSmallIcon(R.mipmap.ic_launcher);
-        mBuilder.setContentTitle("Capture in progress...");
+        mBuilder.setSmallIcon(android.R.drawable.stat_sys_download_done);
+        mBuilder.setContentTitle("Packet capture in progress...");
         mBuilder.setContentText("Tap to return to app");
         Intent intent = PacketCapperActivity.getIntent(this);
         intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
