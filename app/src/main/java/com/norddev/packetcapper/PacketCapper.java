@@ -8,7 +8,6 @@ import android.os.SystemClock;
 import android.util.Log;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
@@ -213,10 +212,6 @@ public class PacketCapper {
                 notifyStart(mListener, new CaptureFile(options.getOutputFile()));
             }
         }
-    }
-
-    public static String getCaptureFileName(){
-        return "test.pcap";
     }
 
     private void stopCapture() {

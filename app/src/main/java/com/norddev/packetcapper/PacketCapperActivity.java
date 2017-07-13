@@ -33,9 +33,10 @@ import net.rdrei.android.dirchooser.DirectoryChooserConfig;
 import net.rdrei.android.dirchooser.DirectoryChooserFragment;
 
 import java.io.File;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Locale;
 import java.util.Map;
-import java.util.TreeMap;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -51,6 +52,7 @@ public class PacketCapperActivity extends AppCompatActivity implements
 
     private static final String TAG = "PacketCapperActivity";
     public static final String PREF_KEY_OUTPUT_DIRECTORY = "output_dir";
+    public static final String PREF_KEY_CAPTURE_FILE_NAME_FORMAT = "capture_name_fmt";
     private static final String PUBLIC_KEY = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAgKPmaK3l3/zjg8Gi76joeQmwY" +
             "RioqAxQ0kGG9jHuQjWTo94aCESyVR/bRWpgtDOzKNEWRoCOAtZJGt2odunf6SpWP91tcQ1l8n8LLAoYNDgEa8qXEOO9w9CGwcqEOMj" +
             "7eyC6xZAzjSKY2JfTHuKsWc3ChyV6IBXgyj40cxbFu9QKFQrzatCidJF6wnTQQUSAwQjMRPbxQ2F89fTQRGL3iZbEOpxxGp+gqj50+" +
@@ -75,7 +77,6 @@ public class PacketCapperActivity extends AppCompatActivity implements
     private PacketCapper.CaptureFile mCaptureFile;
     private FirebaseAnalytics mFirebaseAnalytics;
     private IabHelper mHelper;
-    private Map<Integer, Float> mRateToFrequency;
     private boolean mRemoveAds;
     private DirectoryChooserFragment mDialog;
     private TSnackbar mSnackbar;
@@ -224,13 +225,21 @@ public class PacketCapperActivity extends AppCompatActivity implements
         return new Intent(context, PacketCapperActivity.class);
     }
 
+    private String getCaptureFileName(){
+        String nameFmt = Hawk.get(PREF_KEY_CAPTURE_FILE_NAME_FORMAT);
+        Date now = new Date();
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.getDefault());
+        return nameFmt.replaceAll("%T", String.valueOf(now.getTime()))
+                .replaceAll("%D", dateFormat.format(now));
+    }
+
     @NeedsPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
     public void startCapture() {
         Log.i(TAG, "Starting capture");
         //start the timer now instead of waiting for the capture to boot up
         mElapsedTimer.setBase(SystemClock.elapsedRealtime());
         String outputDirPath = Hawk.get(PREF_KEY_OUTPUT_DIRECTORY);
-        File outputFile = new File(outputDirPath, PacketCapper.getCaptureFileName());
+        File outputFile = new File(outputDirPath, getCaptureFileName());
         PacketCapper.CaptureOptions options = new PacketCapper.CaptureOptions(outputFile);
         mPacketCapper.capture(options);
     }
@@ -285,13 +294,12 @@ public class PacketCapperActivity extends AppCompatActivity implements
             }
         });
 
-        mRateToFrequency = generateFrequencyRange(0, 5000, 10, 0.0f, 0.50f);
-
+        final Map<Integer, Float> rateToFrequency = Util.generateFrequencyRange(0, 5000, 10, 0.0f, 0.50f);
         final TrafficMeter trafficMeter = new TrafficMeter(new TrafficMeter.Listener() {
             @Override
             public void onTrafficRateSampled(int kbps) {
-                int rate = getNearestKey(mRateToFrequency, kbps);
-                float frequency = mRateToFrequency.get(rate);
+                int rate = Util.getNearestKey(rateToFrequency, kbps);
+                float frequency = rateToFrequency.get(rate);
                 mPixelsView.setFrequency(frequency);
                 mNetworkRate.setText(TrafficMeter.formatNetworkRate(kbps));
             }
@@ -351,6 +359,7 @@ public class PacketCapperActivity extends AppCompatActivity implements
             public void onIabSetupFinished(IabResult result) {
                 if (!result.isSuccess()) {
                     Log.d(TAG, "Problem setting up In-app Billing: " + result);
+                    loadAd();
                 } else {
                     IabHelper.QueryInventoryFinishedListener inventoryFinishedListener = new IabHelper.QueryInventoryFinishedListener() {
                         public void onQueryInventoryFinished(IabResult result, Inventory inventory) {
@@ -374,31 +383,6 @@ public class PacketCapperActivity extends AppCompatActivity implements
                 }
             }
         });
-    }
-
-    private Map<Integer, Float> generateFrequencyRange(int startRate, int endRate, int step, float startFrequency, float endFrequency) {
-        Map<Integer, Float> map = new TreeMap<>();
-        float frequency = startFrequency;
-        int numSteps = (endRate - startRate) / step;
-        float frequencyStep = (endFrequency - startFrequency) / numSteps;
-        for (int rate = startRate; rate <= endRate; rate += step) {
-            map.put(rate, frequency);
-            frequency += frequencyStep;
-        }
-        return map;
-    }
-
-    public static Integer getNearestKey(Map<Integer, Float> map, long target) {
-        double minDiff = Double.MAX_VALUE;
-        Integer nearest = null;
-        for (Integer key : map.keySet()) {
-            double diff = Math.abs(target - key);
-            if (diff < minDiff) {
-                nearest = key;
-                minDiff = diff;
-            }
-        }
-        return nearest;
     }
 
     private void extractTCPDump() {

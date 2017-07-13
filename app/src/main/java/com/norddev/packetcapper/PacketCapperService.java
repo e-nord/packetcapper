@@ -4,6 +4,7 @@ import android.app.Notification;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.BitmapFactory;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.support.v7.app.NotificationCompat;
@@ -48,7 +49,8 @@ public class PacketCapperService extends Service {
     private void showNotification(){
         mBuilder.setPriority(Notification.PRIORITY_MIN);
         mBuilder.setOngoing(true);
-        mBuilder.setSmallIcon(android.R.drawable.stat_sys_download_done);
+        mBuilder.setLargeIcon(BitmapFactory.decodeResource(getResources(), R.drawable.ic_app_notif));
+        //mBuilder.setSmallIcon(android.R.drawable.stat_sys_download_done);
         mBuilder.setContentTitle("Packet capture in progress...");
         mBuilder.setContentText("Tap to return to app");
         Intent intent = PacketCapperActivity.getIntent(this);
