@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#2196f3</color>
-    <color name="colorPrimaryDark">#01579b</color>
+    <color name="colorPrimary">#03A9F4</color>
+    <color name="colorPrimaryDark">#01579B</color>
     <color name="colorAccent">#ff4081</color>
-    <color name="white">@android:color/white</color>
+    <color name="white">#fafafa</color>
     <color name="cpb_blue">@color/colorPrimary</color>
     <color name="cpb_grey">#ffdedede</color>
     <color name="cpb_red">#ffff4444</color>
