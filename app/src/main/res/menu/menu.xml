@@ -10,6 +10,10 @@
         android:title="@string/set_capture_args"
         app:showAsAction="never"/>
     <item
+        android:id="@+id/menu_set_capture_interface"
+        android:title="@string/set_capture_interface"
+        app:showAsAction="never"/>
+    <item
         android:id="@+id/menu_remove_ads"
         android:title="@string/remove_ads"
         app:showAsAction="never"/>

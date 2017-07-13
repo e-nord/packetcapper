@@ -35,6 +35,7 @@ import net.rdrei.android.dirchooser.DirectoryChooserFragment;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -52,6 +53,7 @@ public class PacketCapperActivity extends AppCompatActivity implements
 
     private static final String TAG = "PacketCapperActivity";
     public static final String PREF_KEY_OUTPUT_DIRECTORY = "output_dir";
+    public static final String PREF_KEY_CAPTURE_INTERFACE = "capture_interface";
     public static final String PREF_KEY_CAPTURE_FILE_NAME_FORMAT = "capture_name_fmt";
     private static final String PUBLIC_KEY = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAgKPmaK3l3/zjg8Gi76joeQmwY" +
             "RioqAxQ0kGG9jHuQjWTo94aCESyVR/bRWpgtDOzKNEWRoCOAtZJGt2odunf6SpWP91tcQ1l8n8LLAoYNDgEa8qXEOO9w9CGwcqEOMj" +
@@ -64,17 +66,17 @@ public class PacketCapperActivity extends AppCompatActivity implements
     PacketCaptureButton mCaptureButton;
     @BindView(R.id.time_elapsed)
     Chronometer mElapsedTimer;
-    @BindView(R.id.capture_size)
-    TextView mCapturedBytesCount;
+    @BindView(R.id.capture_file_info)
+    TextView mCaptureInfo;
     @BindView(R.id.pixels_view)
     PixelsView mPixelsView;
-    @BindView(R.id.network_rate)
-    TextView mNetworkRate;
+    @BindView(R.id.interface_info)
+    TextView mInterfaceInfo;
     @BindView(R.id.banner_ad)
     AdView mAdView;
 
     private PacketCapper mPacketCapper;
-    private PacketCapper.CaptureFile mCaptureFile;
+    private PacketCapper.CaptureSession mCaptureSession;
     private FirebaseAnalytics mFirebaseAnalytics;
     private IabHelper mHelper;
     private boolean mRemoveAds;
@@ -107,7 +109,7 @@ public class PacketCapperActivity extends AppCompatActivity implements
         return true;
     }
 
-    private void showAbout(){
+    private void showAbout() {
         new EasyLicensesDialogCompat(this)
                 .setTitle("Licenses")
                 .setPositiveButton(android.R.string.ok, null)
@@ -120,7 +122,7 @@ public class PacketCapperActivity extends AppCompatActivity implements
         return super.onPrepareOptionsMenu(menu);
     }
 
-    private void showAppRating(){
+    private void showAppRating() {
         Intent intent = new Intent("android.intent.action.VIEW", Uri.parse("market://details?id=" + getPackageName()));
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intent);
@@ -131,20 +133,40 @@ public class PacketCapperActivity extends AppCompatActivity implements
         if (item.getItemId() == R.id.menu_remove_ads) {
             purchaseRemoveAds();
             return true;
-        } else if(item.getItemId() == R.id.menu_set_output_directory){
+        } else if (item.getItemId() == R.id.menu_set_output_directory) {
             showDirectoryChooser();
             return true;
-        } else if(item.getItemId() == R.id.menu_set_capture_args){
+        } else if (item.getItemId() == R.id.menu_set_capture_args) {
             showCaptureArgsEditor();
             return true;
-        } else if(item.getItemId() == R.id.menu_rate_app){
+        } else if (item.getItemId() == R.id.menu_rate_app) {
             showAppRating();
             return true;
-        } else if(item.getItemId() == R.id.menu_about){
+        } else if (item.getItemId() == R.id.menu_about) {
             showAbout();
+            return true;
+        } else if (item.getItemId() == R.id.menu_set_capture_interface) {
+            showCaptureInterfaceChooser();
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void showCaptureInterfaceChooser() {
+        List<String> interfaces = IfConfig.getInterfaceNames();
+        String currentIface = Hawk.get(PREF_KEY_CAPTURE_INTERFACE, IfConfig.getDefaultInterface(this));
+        int defaultIndex = interfaces.indexOf(currentIface);
+        new MaterialDialog.Builder(this)
+                .title(R.string.set_capture_interface)
+                .items(interfaces)
+                .itemsCallbackSingleChoice(defaultIndex, new MaterialDialog.ListCallbackSingleChoice() {
+                    @Override
+                    public boolean onSelection(MaterialDialog dialog, View view, int which, CharSequence text) {
+                        Hawk.put(PREF_KEY_CAPTURE_INTERFACE, text.toString());
+                        return true;
+                    }
+                })
+                .show();
     }
 
     private void showCaptureArgsEditor() {
@@ -158,8 +180,8 @@ public class PacketCapperActivity extends AppCompatActivity implements
         mDialog.dismiss();
     }
 
-    private void dismissSnackbar(){
-        if(mSnackbar != null){
+    private void dismissSnackbar() {
+        if (mSnackbar != null) {
             mSnackbar.dismiss();
         }
     }
@@ -173,7 +195,7 @@ public class PacketCapperActivity extends AppCompatActivity implements
         final DirectoryChooserConfig config = DirectoryChooserConfig.builder()
                 .newDirectoryName("packetcapper")
                 .allowNewDirectoryNameModification(true)
-                .initialDirectory((String)Hawk.get(PREF_KEY_OUTPUT_DIRECTORY))
+                .initialDirectory((String) Hawk.get(PREF_KEY_OUTPUT_DIRECTORY))
                 .build();
         mDialog = DirectoryChooserFragment.newInstance(config);
         mDialog.show(getFragmentManager(), null);
@@ -225,7 +247,7 @@ public class PacketCapperActivity extends AppCompatActivity implements
         return new Intent(context, PacketCapperActivity.class);
     }
 
-    private String getCaptureFileName(){
+    private String getCaptureFileName() {
         String nameFmt = Hawk.get(PREF_KEY_CAPTURE_FILE_NAME_FORMAT);
         Date now = new Date();
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.getDefault());
@@ -238,14 +260,15 @@ public class PacketCapperActivity extends AppCompatActivity implements
         Log.i(TAG, "Starting capture");
         //start the timer now instead of waiting for the capture to boot up
         mElapsedTimer.setBase(SystemClock.elapsedRealtime());
+        String ifaceName = Hawk.get(PREF_KEY_CAPTURE_INTERFACE, IfConfig.getDefaultInterface(this));
         String outputDirPath = Hawk.get(PREF_KEY_OUTPUT_DIRECTORY);
         File outputFile = new File(outputDirPath, getCaptureFileName());
-        PacketCapper.CaptureOptions options = new PacketCapper.CaptureOptions(outputFile);
+        PacketCapper.CaptureOptions options = new PacketCapper.CaptureOptions(outputFile, ifaceName);
         mPacketCapper.capture(options);
     }
 
     @OnPermissionDenied(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-    public void onPermissionsDenied(){
+    public void onPermissionsDenied() {
         mCaptureButton.setProgress(PacketCaptureButton.ERROR_STATE_PROGRESS);
     }
 
@@ -270,9 +293,9 @@ public class PacketCapperActivity extends AppCompatActivity implements
     }
 
     private void init() {
-        mNetworkRate.setVisibility(View.INVISIBLE);
+        mInterfaceInfo.setVisibility(View.INVISIBLE);
         mElapsedTimer.setVisibility(View.INVISIBLE);
-        mCapturedBytesCount.setVisibility(View.INVISIBLE);
+        mCaptureInfo.setVisibility(View.INVISIBLE);
 
         mCaptureButton.setIndeterminateProgressMode(true);
         mCaptureButton.setOnClickListener(new View.OnClickListener() {
@@ -285,11 +308,12 @@ public class PacketCapperActivity extends AppCompatActivity implements
         mElapsedTimer.setOnChronometerTickListener(new Chronometer.OnChronometerTickListener() {
             @Override
             public void onChronometerTick(Chronometer chronometer) {
-                if (mCaptureFile != null) {
-                    mCapturedBytesCount.setText(String.format(Locale.getDefault(),
-                            "%s captured", Formatter.formatShortFileSize(PacketCapperActivity.this, mCaptureFile.getCaptureSize())));
+                if (mCaptureSession != null) {
+                    mCaptureInfo.setText(String.format(Locale.getDefault(),
+                            "%s captured on %s", Formatter.formatShortFileSize(PacketCapperActivity.this,
+                                    mCaptureSession.getCaptureSize()), mCaptureSession.getInterfaceName()));
                 } else {
-                    mCapturedBytesCount.setText("");
+                    mCaptureInfo.setText("");
                 }
             }
         });
@@ -301,7 +325,7 @@ public class PacketCapperActivity extends AppCompatActivity implements
                 int rate = Util.getNearestKey(rateToFrequency, kbps);
                 float frequency = rateToFrequency.get(rate);
                 mPixelsView.setFrequency(frequency);
-                mNetworkRate.setText(TrafficMeter.formatNetworkRate(kbps));
+                mInterfaceInfo.setText(TrafficMeter.formatNetworkRate(kbps));
             }
         });
 
@@ -311,30 +335,30 @@ public class PacketCapperActivity extends AppCompatActivity implements
             public void onError(String msg) {
                 Log.i(TAG, "Capture error");
                 mFirebaseAnalytics.logEvent("capture_error", null);
-                if(msg != null) {
+                if (msg != null) {
                     mSnackbar = TSnackbar.make(mPixelsView, msg, TSnackbar.LENGTH_INDEFINITE);
                     mSnackbar.show();
                 }
                 mCaptureButton.setProgress(PacketCaptureButton.ERROR_STATE_PROGRESS);
                 mElapsedTimer.stop();
                 trafficMeter.stop();
-                mCaptureFile = null;
+                mCaptureSession = null;
                 PacketCapperService.stop(getApplicationContext());
                 mPixelsView.stopAnimation();
             }
 
             @Override
-            public void onStart(PacketCapper.CaptureFile captureFile) {
+            public void onStart(PacketCapper.CaptureSession captureSession) {
                 Log.i(TAG, "Capture started");
                 mFirebaseAnalytics.logEvent("capture_started", null);
-                mCaptureFile = captureFile;
+                mCaptureSession = captureSession;
                 mCaptureButton.setProgress(PacketCaptureButton.SUCCESS_STATE_PROGRESS);
                 mElapsedTimer.setBase(SystemClock.elapsedRealtime());
                 mElapsedTimer.start();
                 trafficMeter.start();
                 mElapsedTimer.setVisibility(View.VISIBLE);
-                mNetworkRate.setVisibility(View.VISIBLE);
-                mCapturedBytesCount.setVisibility(View.VISIBLE);
+                mInterfaceInfo.setVisibility(View.VISIBLE);
+                mCaptureInfo.setVisibility(View.VISIBLE);
                 PacketCapperService.start(getApplicationContext());
                 mPixelsView.startAnimation();
             }
@@ -345,8 +369,8 @@ public class PacketCapperActivity extends AppCompatActivity implements
                 mCaptureButton.setProgress(PacketCaptureButton.IDLE_STATE_PROGRESS);
                 mElapsedTimer.stop();
                 trafficMeter.stop();
-                mNetworkRate.setVisibility(View.INVISIBLE);
-                mCaptureFile = null;
+                mInterfaceInfo.setVisibility(View.INVISIBLE);
+                mCaptureSession = null;
                 PacketCapperService.stop(getApplicationContext());
                 mPixelsView.stopAnimation();
             }

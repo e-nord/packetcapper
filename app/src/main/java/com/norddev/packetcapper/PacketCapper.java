@@ -30,20 +30,26 @@ public class PacketCapper {
     public interface EventListener {
         void onError(String msg);
 
-        void onStart(CaptureFile captureFile);
+        void onStart(CaptureSession captureSession);
 
         void onStop();
     }
 
     public static class CaptureOptions {
         private final File mOutputFile;
+        private final String mInterface;
 
-        public CaptureOptions(File outputFile) {
+        public CaptureOptions(File outputFile, String iface) {
             mOutputFile = outputFile;
+            mInterface = iface;
         }
 
         public File getOutputFile() {
             return mOutputFile;
+        }
+
+        public String getInterface() {
+            return mInterface;
         }
     }
 
@@ -85,12 +91,12 @@ public class PacketCapper {
         });
     }
 
-    private void notifyStart(final EventListener listener, final CaptureFile captureFile) {
+    private void notifyStart(final EventListener listener, final CaptureSession captureSession) {
         if (listener != null) {
             mMainHandler.post(new Runnable() {
                 @Override
                 public void run() {
-                    listener.onStart(captureFile);
+                    listener.onStart(captureSession);
                 }
             });
         }
@@ -118,15 +124,15 @@ public class PacketCapper {
         }
     }
 
-    private String getOutput(List<String> output){
+    private String getOutput(List<String> output) {
         String result = null;
-        if(output != null) {
+        if (output != null) {
             StringBuilder builder = new StringBuilder();
             for (String line : output) {
                 builder.append(line);
             }
             result = builder.toString().trim();
-            if(result.isEmpty()){
+            if (result.isEmpty()) {
                 result = null;
             }
         }
@@ -143,11 +149,11 @@ public class PacketCapper {
                     public void onCommandResult(int commandCode, int exitCode, List<String> output) {
                         if (exitCode != Shell.OnCommandResultListener.SHELL_RUNNING) {
                             String msg = getOutput(output);
-                            if(msg != null){
+                            if (msg != null) {
                                 msg = "Shell: " + msg;
                                 Log.e(TAG, msg);
                             }
-                            if(!mIsStopped) {
+                            if (!mIsStopped) {
                                 notifyError(mListener, msg);
                             }
                         }
@@ -158,7 +164,7 @@ public class PacketCapper {
     private static List<Integer> findPIDs(String executable) {
         List<Integer> pids = new LinkedList<>();
         List<String> output = Shell.SU.run("ps");
-        if(output != null) {
+        if (output != null) {
             for (String line : output) {
                 if (line.contains(executable)) {
                     String[] parts = line.split("\\s+");
@@ -169,9 +175,9 @@ public class PacketCapper {
         return pids;
     }
 
-    private static int findPID(String executable){
+    private static int findPID(String executable) {
         List<Integer> pids = findPIDs(executable);
-        if(pids.isEmpty()){
+        if (pids.isEmpty()) {
             return PID_UNKNOWN;
         } else {
             return pids.get(0);
@@ -183,21 +189,21 @@ public class PacketCapper {
             mPid = PID_UNKNOWN;
             mIsStopped = false;
             mShell = openRootShell();
-            if(options.getOutputFile().exists() && !options.getOutputFile().delete()){
+            if (options.getOutputFile().exists() && !options.getOutputFile().delete()) {
                 Log.e(TAG, "Failed to delete existing output file");
             }
-            String args = String.format(Locale.US, "-s 0 -U -w %s", options.getOutputFile());
+            String args = String.format(Locale.US, "-i %s -s 0 -U -w %s", options.getInterface(), options.getOutputFile());
             String cmd = String.format(Locale.US, "%s %s", getTCPDumpExecutable(mContext).getAbsolutePath(), args);
             mShell.addCommand(cmd, 1, new Shell.OnCommandResultListener() {
                 @Override
                 public void onCommandResult(int commandCode, int exitCode, List<String> output) {
                     if (exitCode != 0) {
                         String msg = getOutput(output);
-                        if(msg != null){
+                        if (msg != null) {
                             msg = "Capture: " + msg;
                             Log.e(TAG, msg);
                         }
-                        if(!mIsStopped) {
+                        if (!mIsStopped) {
                             notifyError(mListener, msg);
                         }
                     }
@@ -209,7 +215,7 @@ public class PacketCapper {
                 notifyError(mListener, "Failed to find spawned process PID");
             } else {
                 Log.d(TAG, "PID = " + mPid);
-                notifyStart(mListener, new CaptureFile(options.getOutputFile()));
+                notifyStart(mListener, new CaptureSession(options));
             }
         }
     }
@@ -227,26 +233,34 @@ public class PacketCapper {
         notifyStop(mListener);
     }
 
-    public static void kill(int pid){
+    public static void kill(int pid) {
         Shell.SU.run(String.format(Locale.getDefault(), "kill INT %d", pid));
     }
 
-    public static void killAll(Context context){
+    public static void killAll(Context context) {
         List<Integer> pids = findPIDs(getTCPDumpExecutable(context).getAbsolutePath());
-        for(int pid : pids){
+        for (int pid : pids) {
             kill(pid);
         }
     }
 
-    public static class CaptureFile {
-        private final File mOutputFile;
+    public static class CaptureSession {
+        private final CaptureOptions mOptions;
 
-        private CaptureFile(File outputFile) {
-            mOutputFile = outputFile;
+        private CaptureSession(CaptureOptions captureOptions) {
+            mOptions = captureOptions;
         }
 
-        public long getCaptureSize(){
-            return mOutputFile.length();
+        public String getInterfaceName() {
+            return mOptions.getInterface();
+        }
+
+        public File getOutputFile() {
+            return mOptions.getOutputFile();
+        }
+
+        public long getCaptureSize() {
+            return mOptions.getOutputFile().length();
         }
     }
 }
