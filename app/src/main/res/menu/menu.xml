@@ -6,16 +6,16 @@
         android:title="@string/set_output_directory"
         app:showAsAction="never"/>
     <item
+        android:id="@+id/menu_browse_captures"
+        android:title="@string/browse_captures"
+        app:showAsAction="never"/>
+    <item
         android:id="@+id/menu_set_capture_args"
         android:title="@string/set_capture_args"
         app:showAsAction="never"/>
     <item
         android:id="@+id/menu_set_capture_interface"
         android:title="@string/set_capture_interface"
-        app:showAsAction="never"/>
-    <item
-        android:id="@+id/menu_remove_ads"
-        android:title="@string/remove_ads"
         app:showAsAction="never"/>
     <item
         android:id="@+id/menu_rate_app"

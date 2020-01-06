@@ -6,6 +6,8 @@ import android.os.Environment;
 import com.orhanobut.hawk.Hawk;
 import com.orhanobut.hawk.NoEncryption;
 
+import java.io.File;
+
 public class PacketCapperApplication extends Application {
     @Override
     public void onCreate() {
@@ -18,16 +20,18 @@ public class PacketCapperApplication extends Application {
         if(!Hawk.contains(PacketCapperActivity.PREF_KEY_CAPTURE_FILE_NAME_FORMAT)){
             Hawk.put(PacketCapperActivity.PREF_KEY_CAPTURE_FILE_NAME_FORMAT, getDefaultCatpureFileNameFormat());
         }
-        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
-            @Override
-            public void run() {
-                PacketCapper.killAll(PacketCapperApplication.this);
-            }
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            PacketCapper.killAll();
         }));
     }
 
     public static String getDefaultOutputDirectoryPath(){
-        return Environment.getExternalStorageDirectory().getAbsolutePath();
+        File extStorage = Environment.getExternalStorageDirectory();
+        File legacyStorage = new File(extStorage.getParentFile(), "legacy");
+        if(legacyStorage.exists()){
+            extStorage = legacyStorage;
+        }
+        return extStorage.getAbsolutePath();
     }
 
     public static String getDefaultCatpureFileNameFormat(){

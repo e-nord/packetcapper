@@ -1,16 +1,20 @@
 apply plugin: 'com.android.application'
 apply plugin: 'com.google.gms.google-services'
+apply plugin: 'io.fabric'
 
 android {
-    compileSdkVersion 25
-    buildToolsVersion "25.0.2"
+    compileSdkVersion 28
     defaultConfig {
         applicationId "com.norddev.packetcapper"
-        minSdkVersion 16
-        targetSdkVersion 25
+        minSdkVersion 23
+        targetSdkVersion 28
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+    }
+    compileOptions {
+        sourceCompatibility 1.8
+        targetCompatibility 1.8
     }
     buildTypes {
         release {
@@ -21,24 +25,16 @@ android {
 }
 
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
-    compile 'com.android.support:appcompat-v7:25.1.1'
-    compile 'eu.chainfire:libsuperuser:1.0.0.201608240809'
-    compile 'commons-io:commons-io:2.5'
-    compile 'com.google.firebase:firebase-ads:10.0.1'
-    compile 'com.google.firebase:firebase-crash:10.0.1'
-    compile 'com.afollestad.material-dialogs:core:0.9.2.3'
-    compile 'com.afollestad.material-dialogs:commons:0.9.2.3'
-    compile 'com.github.dmytrodanylyk.circular-progress-button:library:1.1.3'
-    compile 'com.google.firebase:firebase-core:10.0.1'
-    compile 'com.orhanobut:hawk:2.0.1'
-    compile 'net.rdrei.android.dirchooser:library:3.2@aar'
-    compile 'com.gu:option:1.3'
-    compile 'com.androidadvance:topsnackbar:1.1.1'
-    compile 'fr.nicolaspomepuy:discreetapprate:2.0.3@aar'
-    compile 'com.github.marcoscgdev:EasyLicensesDialog:2.0.0'
-    compile 'com.jakewharton:butterknife:8.5.1'
-    annotationProcessor 'com.jakewharton:butterknife-compiler:8.5.1'
-    compile 'com.github.hotchemi:permissionsdispatcher:2.3.1'
-    annotationProcessor 'com.github.hotchemi:permissionsdispatcher-processor:2.3.1'
+    implementation 'eu.chainfire:libsuperuser:1.1.0.201907261845'
+    implementation 'commons-io:commons-io:2.5'
+    implementation 'com.google.firebase:firebase-analytics:17.2.1'
+    implementation 'com.crashlytics.sdk.android:crashlytics:2.10.1'
+    implementation 'com.github.dmytrodanylyk.circular-progress-button:library:1.1.3'
+    implementation 'com.orhanobut:hawk:2.0.1'
+    implementation 'com.github.codekidX:storage-chooser:2.0.4.4'
+    implementation 'com.gu:option:1.3'
+    implementation 'fr.nicolaspomepuy:discreetapprate:2.0.3@aar'
+    implementation 'de.psdev.licensesdialog:licensesdialog:2.1.0'
+    implementation 'com.karumi:dexter:6.0.1'
+    implementation 'com.google.android.material:material:1.0.0'
 }

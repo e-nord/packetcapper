@@ -4,16 +4,16 @@ import android.content.Context;
 import android.os.AsyncTask;
 import android.widget.Toast;
 
-import com.afollestad.materialdialogs.MaterialDialog;
-
 import java.io.File;
 import java.io.IOException;
+
+import androidx.appcompat.app.AlertDialog;
 
 public class AssetExtractorTask extends AsyncTask<File,Void,Exception> {
 
     private final Context mContext;
     private final String mAssetPath;
-    private MaterialDialog mDialog;
+    private AlertDialog mDialog;
     private boolean mMakeExecutable;
 
     public AssetExtractorTask(Context context, String assetPath) {
@@ -47,10 +47,9 @@ public class AssetExtractorTask extends AsyncTask<File,Void,Exception> {
 
     @Override
     protected void onPreExecute() {
-        mDialog = new MaterialDialog.Builder(mContext)
-                .title(R.string.setting_up)
-                .content(R.string.please_wait)
-                .progress(true, 0)
+        mDialog = new AlertDialog.Builder(mContext)
+                .setTitle(R.string.setting_up)
+                .setMessage(R.string.please_wait)
                 .show();
     }
 

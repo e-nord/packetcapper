@@ -12,9 +12,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 
+import androidx.annotation.NonNull;
 import eu.chainfire.libsuperuser.Shell;
+import eu.chainfire.libsuperuser.StreamGobbler;
 
-public class PacketCapper {
+public class PacketCapper implements StreamGobbler.OnLineListener {
 
     private static final String TAG = "PacketCapper";
     private final Context mContext;
@@ -26,6 +28,13 @@ public class PacketCapper {
     private boolean mIsStopped;
 
     private static final int PID_UNKNOWN = -1;
+
+    private static String getSystemRootShell() {
+        if(new File("/system/xbin/suhandy").exists()){
+            return "suhandy";
+        }
+        return "su";
+    }
 
     public interface EventListener {
         void onError(String msg);
@@ -62,8 +71,10 @@ public class PacketCapper {
     }
 
     public static File getTCPDumpExecutable(Context context) {
-        return new File(context.getFilesDir(), "tcpdump");
+        return new File(context.getFilesDir(), TCPDUMP_EXECUTABLE_NAME);
     }
+
+    public static final String TCPDUMP_EXECUTABLE_NAME = "tcpdump";
 
     public static File getLogFile(Context context) {
         return new File(context.getFilesDir(), "log.txt");
@@ -74,173 +85,172 @@ public class PacketCapper {
     }
 
     public void capture(final CaptureOptions options) {
-        mShellHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                startCapture(options);
-            }
-        });
+        mShellHandler.post(() -> startCapture(options));
     }
 
     public void stop() {
-        mShellHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                stopCapture();
-            }
-        });
+        mShellHandler.post(this::stopCapture);
     }
 
     private void notifyStart(final EventListener listener, final CaptureSession captureSession) {
         if (listener != null) {
-            mMainHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    listener.onStart(captureSession);
-                }
-            });
+            mMainHandler.post(() -> listener.onStart(captureSession));
         }
     }
 
     private void notifyError(final EventListener listener, final String msg) {
         if (listener != null) {
-            mMainHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    listener.onError(msg);
-                }
-            });
+            mMainHandler.post(() -> listener.onError(msg));
         }
     }
 
     private void notifyStop(final EventListener listener) {
         if (listener != null) {
-            mMainHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    listener.onStop();
-                }
-            });
+            mMainHandler.post(() -> listener.onStop());
         }
     }
 
-    private String getOutput(List<String> output) {
-        String result = null;
-        if (output != null) {
-            StringBuilder builder = new StringBuilder();
-            for (String line : output) {
-                builder.append(line);
-            }
-            result = builder.toString().trim();
-            if (result.isEmpty()) {
-                result = null;
-            }
-        }
-        return result;
+    @Override
+    public void onLine(String line) {
+        Log.e(TAG, line);
     }
 
-    private Shell.Interactive openRootShell() {
-        return new Shell.Builder().
-                useSU().
-                setWantSTDERR(true).
-                open(new Shell.OnCommandResultListener() {
-                    // Callback to report whether the shell was successfully started up
-                    @Override
-                    public void onCommandResult(int commandCode, int exitCode, List<String> output) {
-                        if (exitCode != Shell.OnCommandResultListener.SHELL_RUNNING) {
-                            String msg = getOutput(output);
-                            if (msg != null) {
-                                msg = "Shell: " + msg;
-                                Log.e(TAG, msg);
-                            }
-                            if (!mIsStopped) {
-                                notifyError(mListener, msg);
-                            }
-                        }
+    private Shell.Interactive openRootShell(String shell) {
+        return new Shell.Builder()
+                .setShell(shell)
+                .setOnSTDERRLineListener(this)
+                .setOnSTDOUTLineListener(this)
+                .open((success, reason) -> {
+                    if (!success) {
+                        notifyError(mListener, "Failed to open root shell: reason=" + reason);
                     }
                 });
     }
 
-    private static List<Integer> findPIDs(String executable) {
+    private static List<Integer> findPIDs(String executable) throws Shell.ShellDiedException {
         List<Integer> pids = new LinkedList<>();
-        List<String> output = Shell.SU.run("ps");
-        if (output != null) {
-            for (String line : output) {
-                if (line.contains(executable)) {
-                    String[] parts = line.split("\\s+");
-                    pids.add(Integer.parseInt(parts[1]));
-                }
+        List<String> stdout = new LinkedList<>();
+        List<String> stderr = new LinkedList<>();
+
+        System.out.println("finding PID for executable: " + executable);
+
+        Shell.Pool.SU.run("ps -A", stdout, stderr, true);
+
+        for (String line : stdout) {
+            System.out.println(line);
+            if (line.contains(executable)) {
+                String[] parts = line.split("\\s+");
+                pids.add(Integer.parseInt(parts[1]));
             }
         }
         return pids;
     }
 
-    private static int findPID(String executable) {
-        List<Integer> pids = findPIDs(executable);
-        if (pids.isEmpty()) {
-            return PID_UNKNOWN;
-        } else {
-            return pids.get(0);
+    private static int findPID() {
+        List<Integer> pids;
+        try {
+            pids = findPIDs(PacketCapper.TCPDUMP_EXECUTABLE_NAME);
+            if (!pids.isEmpty()) {
+                return pids.get(0);
+            }
+        } catch (Shell.ShellDiedException e) {
+            e.printStackTrace();
         }
+        return PID_UNKNOWN;
     }
 
     private void startCapture(final CaptureOptions options) {
         if (mShell == null) {
             mPid = PID_UNKNOWN;
             mIsStopped = false;
-            mShell = openRootShell();
+            mShell = openRootShell(getSystemRootShell());
+
             if (options.getOutputFile().exists() && !options.getOutputFile().delete()) {
                 Log.e(TAG, "Failed to delete existing output file");
             }
+
             String args = String.format(Locale.US, "-i %s -s 0 -U -w %s", options.getInterface(), options.getOutputFile());
             String cmd = String.format(Locale.US, "%s %s", getTCPDumpExecutable(mContext).getAbsolutePath(), args);
-            mShell.addCommand(cmd, 1, new Shell.OnCommandResultListener() {
+
+            mShell.addCommand(cmd, 1, new Shell.OnCommandLineListener(){
+
                 @Override
-                public void onCommandResult(int commandCode, int exitCode, List<String> output) {
-                    if (exitCode != 0) {
-                        String msg = getOutput(output);
-                        if (msg != null) {
-                            msg = "Capture: " + msg;
-                            Log.e(TAG, msg);
-                        }
-                        if (!mIsStopped) {
-                            notifyError(mListener, msg);
+                public void onCommandResult(int commandCode, int exitCode) {
+                    switch (exitCode){
+                        case 0: //Success
+                        case -2: //Killed?
+                            break;
+                        default:
+                            notifyError(mListener, "Failed to start packet capture: exitcode=" + exitCode);
+                            break;
+                    }
+                }
+
+                @Override
+                public void onSTDOUT(@NonNull String line) {
+
+                }
+
+                @Override
+                public void onSTDERR(@NonNull String line) {
+                    if(line.contains("tcpdump: listening")){
+                        mPid = findPID();
+
+                        Log.d(TAG, "Found PID = " + mPid);
+
+                        if (mPid == PID_UNKNOWN) {
+                            notifyError(mListener, "Failed to find spawned process PID");
+                        } else {
+                            notifyStart(mListener, new CaptureSession(options));
                         }
                     }
                 }
             });
-            SystemClock.sleep(1000);
-            mPid = findPID(getTCPDumpExecutable(mContext).getAbsolutePath());
-            if (mPid == PID_UNKNOWN) {
-                notifyError(mListener, "Failed to find spawned process PID");
-            } else {
-                Log.d(TAG, "PID = " + mPid);
-                notifyStart(mListener, new CaptureSession(options));
-            }
         }
     }
 
     private void stopCapture() {
+        Log.d(TAG, "Stopping capture");
         if (mShell != null) {
             if (mPid != PID_UNKNOWN) {
-                kill(mPid);
+                try {
+                    int exitCode = kill(mPid);
+                    Log.d(TAG, "Kill exit code: " + exitCode);
+                } catch (Shell.ShellDiedException e) {
+                    e.printStackTrace();
+                }
             }
             mIsStopped = true;
-            mShell.close();
+            mShell.kill();
             mShell = null;
             SystemClock.sleep(1000);
         }
         notifyStop(mListener);
     }
 
-    public static void kill(int pid) {
-        Shell.SU.run(String.format(Locale.getDefault(), "kill INT %d", pid));
+    public static int kill(int pid) throws Shell.ShellDiedException {
+        return Shell.Pool.SU.run(String.format(Locale.getDefault(), "kill %d", pid), new Shell.OnSyncCommandLineListener() {
+            @Override
+            public void onSTDERR(@NonNull String line) {
+                Log.d(TAG, line);
+            }
+
+            @Override
+            public void onSTDOUT(@NonNull String line) {
+                Log.d(TAG, line);
+            }
+        });
     }
 
-    public static void killAll(Context context) {
-        List<Integer> pids = findPIDs(getTCPDumpExecutable(context).getAbsolutePath());
-        for (int pid : pids) {
-            kill(pid);
+    public static void killAll() {
+        List<Integer> pids;
+        try {
+            pids = findPIDs(PacketCapper.TCPDUMP_EXECUTABLE_NAME);
+            for (int pid : pids) {
+                kill(pid);
+            }
+        } catch (Shell.ShellDiedException e) {
+            e.printStackTrace();
         }
     }
 
