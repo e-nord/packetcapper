@@ -20,9 +20,7 @@ public class PacketCapperApplication extends Application {
         if(!Hawk.contains(PacketCapperActivity.PREF_KEY_CAPTURE_FILE_NAME_FORMAT)){
             Hawk.put(PacketCapperActivity.PREF_KEY_CAPTURE_FILE_NAME_FORMAT, getDefaultCatpureFileNameFormat());
         }
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            PacketCapper.killAll();
-        }));
+        Runtime.getRuntime().addShutdownHook(new Thread(PacketCapper::killAll));
     }
 
     public static String getDefaultOutputDirectoryPath(){

@@ -29,13 +29,6 @@ public class PacketCapper implements StreamGobbler.OnLineListener {
 
     private static final int PID_UNKNOWN = -1;
 
-    private static String getSystemRootShell() {
-        if(new File("/system/xbin/suhandy").exists()){
-            return "suhandy";
-        }
-        return "su";
-    }
-
     public interface EventListener {
         void onError(String msg);
 
@@ -134,7 +127,7 @@ public class PacketCapper implements StreamGobbler.OnLineListener {
 
         System.out.println("finding PID for executable: " + executable);
 
-        Shell.Pool.SU.run("ps -A", stdout, stderr, true);
+        Shell.Pool.SU.run(Compat.getPSCommand(), stdout, stderr, true);
 
         for (String line : stdout) {
             System.out.println(line);
@@ -163,7 +156,7 @@ public class PacketCapper implements StreamGobbler.OnLineListener {
         if (mShell == null) {
             mPid = PID_UNKNOWN;
             mIsStopped = false;
-            mShell = openRootShell(getSystemRootShell());
+            mShell = openRootShell(Compat.getSystemRootShell());
 
             if (options.getOutputFile().exists() && !options.getOutputFile().delete()) {
                 Log.e(TAG, "Failed to delete existing output file");
@@ -229,7 +222,7 @@ public class PacketCapper implements StreamGobbler.OnLineListener {
     }
 
     public static int kill(int pid) throws Shell.ShellDiedException {
-        return Shell.Pool.SU.run(String.format(Locale.getDefault(), "kill %d", pid), new Shell.OnSyncCommandLineListener() {
+        return Shell.Pool.SU.run(Compat.getKillCommand(pid), new Shell.OnSyncCommandLineListener() {
             @Override
             public void onSTDERR(@NonNull String line) {
                 Log.d(TAG, line);

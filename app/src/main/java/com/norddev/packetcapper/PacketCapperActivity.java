@@ -229,13 +229,9 @@ public class PacketCapperActivity extends AppCompatActivity implements Permissio
         mElapsedTimer.setBase(SystemClock.elapsedRealtime());
         String ifaceName = Hawk.get(PREF_KEY_CAPTURE_INTERFACE, CaptureInterfaces.getDefaultInterface(this));
         String outputDirPath = Hawk.get(PREF_KEY_OUTPUT_DIRECTORY);
-        File outputFile = new File(correctExtPath(outputDirPath), getCaptureFileName());
+        File outputFile = new File(Compat.correctExtPath(outputDirPath), getCaptureFileName());
         PacketCapper.CaptureOptions options = new PacketCapper.CaptureOptions(outputFile, ifaceName);
         mPacketCapper.capture(options);
-    }
-
-    private String correctExtPath(String outputDirPath){
-        return outputDirPath.replace("legacy", "0");
     }
 
     private void stopCapture() {
