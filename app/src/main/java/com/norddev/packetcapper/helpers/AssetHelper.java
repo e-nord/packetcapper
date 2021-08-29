@@ -1,24 +1,42 @@
-package com.norddev.packetcapper;
+package com.norddev.packetcapper.helpers;
 
 import android.content.Context;
 import android.os.AsyncTask;
 import android.widget.Toast;
 
-import java.io.File;
-import java.io.IOException;
-
 import androidx.appcompat.app.AlertDialog;
 
-public class AssetExtractorTask extends AsyncTask<File,Void,Exception> {
+import com.norddev.packetcapper.R;
+
+import org.apache.commons.io.IOUtils;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+
+public class AssetHelper extends AsyncTask<File,Void,Exception> {
 
     private final Context mContext;
     private final String mAssetPath;
     private AlertDialog mDialog;
     private boolean mMakeExecutable;
 
-    public AssetExtractorTask(Context context, String assetPath) {
+    public AssetHelper(Context context, String assetPath) {
         mContext = context;
         mAssetPath = assetPath;
+    }
+
+    public static void extract(Context context, String filePath, File file) throws IOException {
+        if (!file.getParentFile().exists() && !file.getParentFile().mkdirs()) {
+            throw new IOException("Failed to create parent directory: " + file.getParent());
+        }
+        FileOutputStream out = new FileOutputStream(file);
+        InputStream in = context.getAssets().open(filePath);
+        IOUtils.copy(in, out);
+        out.flush();
+        IOUtils.closeQuietly(out);
+        IOUtils.closeQuietly(in);
     }
 
     public void setMakeExecutable(boolean executable){
@@ -28,8 +46,7 @@ public class AssetExtractorTask extends AsyncTask<File,Void,Exception> {
     @Override
     protected Exception doInBackground(File... params) {
         try {
-            AssetExtractor extractor = new AssetExtractor(mContext);
-            extractor.extract(mAssetPath, params[0]);
+            AssetHelper.extract(mContext, mAssetPath, params[0]);
             if(mMakeExecutable) {
                 ProcessBuilder builder = new ProcessBuilder("chmod", "755", params[0].getAbsolutePath());
                 Process process = builder.start();

@@ -1,71 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:ads="http://schemas.android.com/apk/res-auto"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/white"
-    tools:context="com.norddev.packetcapper.PacketCapperActivity">
+    tools:context="com.norddev.packetcapper.activities.PacketCapperActivity">
 
-    <com.norddev.packetcapper.PixelsView
-        android:id="@+id/pixels_view"
+    <fragment
+        android:id="@+id/fragment_packet_capper"
+        android:name="com.norddev.packetcapper.fragments.PacketCapperFragment"
         android:layout_width="match_parent"
         android:layout_height="match_parent"/>
 
-    <com.dd.PacketCaptureButton
-        android:id="@+id/capture_button"
-        android:layout_width="196dp"
-        android:layout_height="64dp"
-        android:layout_centerInParent="true"
-        android:layout_margin="8dp"
-        android:textColor="@color/white"
-        android:textSize="18sp"
-        app:cpb_cornerRadius="36dp"
-        app:cpb_iconComplete="@drawable/ic_action_cancel"
-        app:cpb_selectorComplete="@drawable/complete_state_selector"
-        app:cpb_textError="@string/error"
-        app:cpb_textIdle="@string/capture"/>
-
-    <Chronometer
-        android:id="@+id/time_elapsed"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/capture_button"
-        android:layout_centerHorizontal="true"
-        android:padding="4dp"
-        android:textColor="@android:color/black"
-        android:textSize="16sp"/>
-
-    <TextView
-        android:id="@+id/capture_file_info"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/time_elapsed"
-        android:layout_centerHorizontal="true"
-        android:padding="4dp"
-        android:textColor="@android:color/black"
-        android:textSize="14sp"/>
-
-    <TextView
-        android:id="@+id/interface_info"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/capture_file_info"
-        android:layout_centerHorizontal="true"
-        android:padding="4dp"
-        android:textColor="@android:color/black"
-        android:textSize="14sp"/>
-
-    <!--<com.google.android.gms.ads.AdView-->
-        <!--android:id="@+id/banner_ad"-->
-        <!--android:layout_width="match_parent"-->
-        <!--android:layout_height="wrap_content"-->
-        <!--android:layout_alignParentBottom="true"-->
-        <!--android:layout_centerHorizontal="true"-->
-        <!--ads:adSize="BANNER"-->
-        <!--ads:adUnitId="@string/banner_ad_unit_id">-->
-    <!--</com.google.android.gms.ads.AdView>-->
-
-</RelativeLayout>
+</LinearLayout>

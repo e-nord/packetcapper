@@ -3,18 +3,16 @@ package com.norddev.packetcapper;
 import android.net.TrafficStats;
 import android.os.Handler;
 
+import com.norddev.packetcapper.interfaces.ITrafficMeter;
+
 import java.util.Locale;
 
-public class TrafficMeter {
+public class TrafficMeter implements ITrafficMeter {
 
     private final Handler mHandler;
     private final Listener mListener;
     private boolean mIsRunning;
     private long mLastTotalBytes;
-
-    public interface Listener {
-        void onTrafficRateSampled(int kbps);
-    }
 
     public TrafficMeter(Listener listener){
         mListener = listener;

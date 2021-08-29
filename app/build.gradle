@@ -1,20 +1,20 @@
 apply plugin: 'com.android.application'
 apply plugin: 'com.google.gms.google-services'
-apply plugin: 'io.fabric'
+apply plugin: 'com.google.firebase.crashlytics'
 
 android {
-    compileSdkVersion 28
+    compileSdkVersion 30
     defaultConfig {
         applicationId "com.norddev.packetcapper"
-        minSdkVersion 21
-        targetSdkVersion 28
+        minSdkVersion 24
+        targetSdkVersion 30
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     compileOptions {
-        sourceCompatibility 1.8
-        targetCompatibility 1.8
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
     buildTypes {
         release {
@@ -25,16 +25,19 @@ android {
 }
 
 dependencies {
-    implementation 'eu.chainfire:libsuperuser:1.1.0.201907261845'
+    def libsuVersion = '3.1.2'
+    implementation "com.github.topjohnwu.libsu:core:${libsuVersion}"
+    implementation "com.github.topjohnwu.libsu:service:${libsuVersion}"
+    implementation "com.github.topjohnwu.libsu:io:${libsuVersion}"
     implementation 'commons-io:commons-io:2.6'
-    implementation 'com.google.firebase:firebase-analytics:17.2.1'
-    implementation 'com.crashlytics.sdk.android:crashlytics:2.10.1'
+    implementation 'com.google.firebase:firebase-analytics:19.0.0'
     implementation 'com.github.dmytrodanylyk.circular-progress-button:library:1.1.3'
     implementation 'com.orhanobut:hawk:2.0.1'
     implementation 'com.github.codekidX:storage-chooser:2.0.4.4'
-    implementation 'com.gu:option:1.3'
     implementation 'fr.nicolaspomepuy:discreetapprate:2.0.3@aar'
     implementation 'de.psdev.licensesdialog:licensesdialog:2.1.0'
     implementation 'com.karumi:dexter:6.0.1'
-    implementation 'com.google.android.material:material:1.0.0'
+    implementation 'com.google.android.material:material:1.4.0'
+    implementation 'com.google.firebase:firebase-crashlytics:18.2.1'
+    implementation 'com.google.firebase:firebase-analytics:19.0.0'
 }

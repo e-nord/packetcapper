@@ -8,6 +8,8 @@ import java.util.Locale;
 public class Compat {
 
     private static boolean IS_SHITTY_SAMSUNG = Build.VERSION.SDK_INT <= Build.VERSION_CODES.LOLLIPOP_MR1;
+    private static boolean IS_OLDER_PHONE = Build.VERSION.SDK_INT <= Build.VERSION_CODES.N_MR1;
+
 
     public static String getSystemRootShell() {
         if(new File("/system/xbin/suhandy").exists()){
@@ -24,7 +26,7 @@ public class Compat {
     }
 
     public static String getPSCommand(){
-        if(IS_SHITTY_SAMSUNG){
+        if(IS_SHITTY_SAMSUNG || IS_OLDER_PHONE){
             return "ps";
         }
         return "ps -A";

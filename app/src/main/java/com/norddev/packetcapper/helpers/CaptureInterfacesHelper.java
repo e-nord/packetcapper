@@ -1,14 +1,14 @@
-package com.norddev.packetcapper;
+package com.norddev.packetcapper.helpers;
 
 import android.content.Context;
 import android.net.wifi.WifiManager;
 
+import com.topjohnwu.superuser.Shell;
+
 import java.util.LinkedList;
 import java.util.List;
 
-import eu.chainfire.libsuperuser.Shell;
-
-public class CaptureInterfaces {
+public class CaptureInterfacesHelper {
 
     private static final String IFCONFIG_COMMAND = "ifconfig";
     private static final String NETCFG_COMMAND = "netcfg";
@@ -23,7 +23,7 @@ public class CaptureInterfaces {
 
     private static List<String> getNetcfgInterfaces(){
         List<String> interfaces = new LinkedList<>();
-        List<String> output = Shell.SH.run(NETCFG_COMMAND);
+        List<String> output = Shell.sh(NETCFG_COMMAND).exec().getOut();
         for(String line : output){
             if(line.contains("UP")){
                 String[] parts = line.split("\\s");
@@ -35,7 +35,7 @@ public class CaptureInterfaces {
 
     private static List<String> getIfConfigInterfaces(){
         List<String> interfaces = new LinkedList<>();
-        List<String> output = Shell.SH.run(IFCONFIG_COMMAND);
+        List<String> output = Shell.sh(IFCONFIG_COMMAND).exec().getOut();
         for(String line : output){
             if(line.contains("Link encap")){
                 String[] parts = line.split("\\s");

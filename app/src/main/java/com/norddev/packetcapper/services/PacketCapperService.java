@@ -1,4 +1,6 @@
-package com.norddev.packetcapper;
+package com.norddev.packetcapper.services;
+
+import static android.app.PendingIntent.getActivity;
 
 import android.app.Notification;
 import android.app.Service;
@@ -10,7 +12,8 @@ import android.os.IBinder;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
-import static android.app.PendingIntent.getActivity;
+import com.norddev.packetcapper.R;
+import com.norddev.packetcapper.activities.PacketCapperActivity;
 
 public class PacketCapperService extends Service {
 
