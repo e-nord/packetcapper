@@ -13,6 +13,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
+@SuppressWarnings("ALL")
 public class CaptureOptions implements ICaptureOptions {
 
     private final File mOutputFile;
@@ -95,7 +96,7 @@ public class CaptureOptions implements ICaptureOptions {
             return extStorage.getAbsolutePath();
         }
 
-        private static String getDefaultCatpureFileNameFormat(){
+        public static String getDefaultCatpureFileNameFormat(){
             return "capture_%D.pcap";
         }
 

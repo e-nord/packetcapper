@@ -1,5 +1,6 @@
 package com.norddev.packetcapper;
 
+import android.annotation.SuppressLint;
 import android.os.Build;
 
 import java.io.File;
@@ -7,6 +8,7 @@ import java.util.Locale;
 
 public class Compat {
 
+    @SuppressLint("ObsoleteSdkInt")
     private static final boolean IS_SHITTY_SAMSUNG = Build.VERSION.SDK_INT <= Build.VERSION_CODES.LOLLIPOP_MR1;
     private static final boolean IS_OLDER_PHONE = Build.VERSION.SDK_INT <= Build.VERSION_CODES.N_MR1;
 

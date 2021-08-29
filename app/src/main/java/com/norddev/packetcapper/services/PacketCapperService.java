@@ -3,6 +3,7 @@ package com.norddev.packetcapper.services;
 import static android.app.PendingIntent.getActivity;
 
 import android.app.Notification;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -28,7 +29,7 @@ public class PacketCapperService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        mBuilder = new NotificationCompat.Builder(this);
+        mBuilder = new NotificationCompat.Builder(this, "packetcapper");
         showNotification();
     }
 
@@ -59,7 +60,7 @@ public class PacketCapperService extends Service {
         mBuilder.setContentText("Tap to return to app");
         Intent intent = PacketCapperActivity.getIntent(this);
         intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        mBuilder.setContentIntent(getActivity(this, 0, intent, 0));
+        mBuilder.setContentIntent(getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE));
         startForeground(1337, mBuilder.build());
     }
 

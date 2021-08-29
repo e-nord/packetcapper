@@ -29,15 +29,16 @@ dependencies {
     implementation "com.github.topjohnwu.libsu:core:${libsuVersion}"
     implementation "com.github.topjohnwu.libsu:service:${libsuVersion}"
     implementation "com.github.topjohnwu.libsu:io:${libsuVersion}"
+    //noinspection GradleDependency
     implementation 'commons-io:commons-io:2.6'
-    implementation 'com.google.firebase:firebase-analytics:19.0.0'
     implementation 'com.github.dmytrodanylyk.circular-progress-button:library:1.1.3'
     implementation 'com.orhanobut:hawk:2.0.1'
     implementation 'com.github.codekidX:storage-chooser:2.0.4.4'
     implementation 'fr.nicolaspomepuy:discreetapprate:2.0.3@aar'
     implementation 'de.psdev.licensesdialog:licensesdialog:2.1.0'
-    implementation 'com.karumi:dexter:6.0.1'
+    implementation 'com.karumi:dexter:6.2.3'
     implementation 'com.google.android.material:material:1.4.0'
-    implementation 'com.google.firebase:firebase-crashlytics:18.2.1'
-    implementation 'com.google.firebase:firebase-analytics:19.0.0'
+    implementation platform('com.google.firebase:firebase-bom:28.4.0')
+    implementation 'com.google.firebase:firebase-crashlytics'
+    implementation 'com.google.firebase:firebase-analytics'
 }

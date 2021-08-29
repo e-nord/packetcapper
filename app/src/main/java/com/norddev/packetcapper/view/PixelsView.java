@@ -29,7 +29,9 @@ public class PixelsView extends SurfaceView {
             PIXEL_PAINT.setAntiAlias(true);
         }
 
-        private float mX, mY, mSpeed;
+        private final float mX;
+        private float mY;
+        private final float mSpeed;
 
         public static void setPixelPaintColor(int color){
             PIXEL_PAINT.setColor(color);
@@ -106,7 +108,7 @@ public class PixelsView extends SurfaceView {
         });
         setFrequency(DEFAULT_FREQUENCY);
         setBackgroundPaintColor(Color.WHITE);
-        setPixelPaintColor(getResources().getColor(R.color.colorPrimaryDark));
+        setPixelPaintColor(getResources().getColor(R.color.colorPrimaryDark, getContext().getTheme()));
     }
 
     public void setPixelPaintColor(int color){
@@ -195,28 +197,9 @@ public class PixelsView extends SurfaceView {
         stopLoop();
     }
 
-//    @Override
-//    public boolean onTouchEvent(MotionEvent event) {
-//        boolean handled = false;
-//        if (event.getAction() == MotionEvent.ACTION_DOWN) {
-//            createSomePixels(event.getX(), event.getY());
-//            handled = true;
-//        }
-//        return handled;
-//    }
-//
-//    private void createSomePixels(float x, float y) {
-//        for (int numPixels = 0; numPixels < 1; ++numPixels) {
-//            synchronized (mPixels) {
-//                mPixels.add(Pixel.random((int)x, (int)y));
-//            }
-//        }
-//    }
-
     private class RenderLoop extends Thread {
 
         private final SurfaceHolder mSurfaceHolder;
-        private long msPerFrame = 1000 / 25;
         boolean running = true;
 
         RenderLoop(SurfaceHolder surfaceHolder) {
@@ -241,6 +224,7 @@ public class PixelsView extends SurfaceView {
                     }
                 }
                 thisFrameTime = System.currentTimeMillis();
+                long msPerFrame = 1000 / 25;
                 framesSinceLastFrame = (float) (thisFrameTime - lastFrameTime) / msPerFrame;
                 lastFrameTime = thisFrameTime;
             }

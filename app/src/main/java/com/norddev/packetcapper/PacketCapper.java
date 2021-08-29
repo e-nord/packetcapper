@@ -27,7 +27,7 @@ public class PacketCapper implements IPacketCapper {
     private final Handler mMainHandler;
     private final Handler mShellHandler;
     private Shell mShell;
-    private IPacketCapper.Listener mListener;
+    private final IPacketCapper.Listener mListener;
     private Integer mPid;
     private final TCPDump mTcpdump;
 
@@ -80,7 +80,7 @@ public class PacketCapper implements IPacketCapper {
             }
 
             String args = String.format(Locale.US, "-i %s -s 0 -U -w %s", options.getInterface(), options.getOutputFile());
-            String cmd = String.format(Locale.US, "%s2 %s", mTcpdump.getExecutable().getAbsolutePath(), args);
+            String cmd = String.format(Locale.US, "%s %s", mTcpdump.getExecutable().getAbsolutePath(), args);
 
             Log.d(TAG, String.format("Executing: %s", cmd));
 

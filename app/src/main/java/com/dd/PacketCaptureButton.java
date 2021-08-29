@@ -13,11 +13,14 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.AttributeSet;
 import android.util.StateSet;
-import android.widget.Button;
+
+import androidx.core.content.res.ResourcesCompat;
 
 import com.dd.circular.progress.button.R;
 
-public class PacketCaptureButton extends Button {
+import java.util.Objects;
+
+public class PacketCaptureButton extends androidx.appcompat.widget.AppCompatButton {
 
     public static final int IDLE_STATE_PROGRESS = 0;
     public static final int ERROR_STATE_PROGRESS = -1;
@@ -150,7 +153,8 @@ public class PacketCaptureButton extends Button {
     }
 
     private StrokeGradientDrawable createDrawable(int color) {
-        GradientDrawable drawable = (GradientDrawable) getResources().getDrawable(R.drawable.cpb_background).mutate();
+        Drawable d = ResourcesCompat.getDrawable(getResources(), R.drawable.cpb_background, getContext().getTheme());
+        GradientDrawable drawable = (GradientDrawable) Objects.requireNonNull(d).mutate();
         drawable.setColor(color);
         drawable.setCornerRadius(mCornerRadius);
         StrokeGradientDrawable strokeGradientDrawable = new StrokeGradientDrawable(drawable);
@@ -202,15 +206,15 @@ public class PacketCaptureButton extends Button {
 
             int idleStateSelector = attr.getResourceId(R.styleable.CircularProgressButton_cpb_selectorIdle,
                     R.color.cpb_idle_state_selector);
-            mIdleColorState = getResources().getColorStateList(idleStateSelector);
+            mIdleColorState = getResources().getColorStateList(idleStateSelector, getContext().getTheme());
 
             int completeStateSelector = attr.getResourceId(R.styleable.CircularProgressButton_cpb_selectorComplete,
                     R.color.cpb_complete_state_selector);
-            mCompleteColorState = getResources().getColorStateList(completeStateSelector);
+            mCompleteColorState = getResources().getColorStateList(completeStateSelector, getContext().getTheme());
 
             int errorStateSelector = attr.getResourceId(R.styleable.CircularProgressButton_cpb_selectorError,
                     R.color.cpb_error_state_selector);
-            mErrorColorState = getResources().getColorStateList(errorStateSelector);
+            mErrorColorState = getResources().getColorStateList(errorStateSelector, getContext().getTheme());
 
             mColorProgress = attr.getColor(R.styleable.CircularProgressButton_cpb_colorProgress, white);
             mColorIndicator = attr.getColor(R.styleable.CircularProgressButton_cpb_colorIndicator, blue);
@@ -222,7 +226,7 @@ public class PacketCaptureButton extends Button {
     }
 
     protected int getColor(int id) {
-        return getResources().getColor(id);
+        return getResources().getColor(id, getContext().getTheme());
     }
 
     protected TypedArray getTypedArray(Context context, AttributeSet attributeSet, int[] attr) {
@@ -340,7 +344,7 @@ public class PacketCaptureButton extends Button {
         animation.start();
     }
 
-    private OnAnimationEndListener mProgressStateListener = new OnAnimationEndListener() {
+    private final OnAnimationEndListener mProgressStateListener = new OnAnimationEndListener() {
         @Override
         public void onAnimationEnd() {
             mMorphingInProgress = false;
@@ -371,7 +375,7 @@ public class PacketCaptureButton extends Button {
 
     }
 
-    private OnAnimationEndListener mCompleteStateListener = new OnAnimationEndListener() {
+    private final OnAnimationEndListener mCompleteStateListener = new OnAnimationEndListener() {
         @Override
         public void onAnimationEnd() {
             if (mIconComplete != 0) {
@@ -441,7 +445,7 @@ public class PacketCaptureButton extends Button {
         animation.start();
     }
 
-    private OnAnimationEndListener mIdleStateListener = new OnAnimationEndListener() {
+    private final OnAnimationEndListener mIdleStateListener = new OnAnimationEndListener() {
         @Override
         public void onAnimationEnd() {
             removeIcon();
@@ -472,7 +476,7 @@ public class PacketCaptureButton extends Button {
         animation.start();
     }
 
-    private OnAnimationEndListener mErrorStateListener = new OnAnimationEndListener() {
+    private final OnAnimationEndListener mErrorStateListener = new OnAnimationEndListener() {
         @Override
         public void onAnimationEnd() {
             if (mIconError != 0) {
@@ -497,23 +501,20 @@ public class PacketCaptureButton extends Button {
 
         animation.setFromStrokeColor(mColorIndicator);
         animation.setToStrokeColor(getNormalColor(mIdleColorState));
-        animation.setListener(new OnAnimationEndListener() {
-            @Override
-            public void onAnimationEnd() {
-                removeIcon();
-                setText(mIdleText);
-                mMorphingInProgress = false;
-                mState = State.IDLE;
+        animation.setListener(() -> {
+            removeIcon();
+            setText(mIdleText);
+            mMorphingInProgress = false;
+            mState = State.IDLE;
 
-                mStateManager.checkState(PacketCaptureButton.this);
-            }
+            mStateManager.checkState(PacketCaptureButton.this);
         });
 
         animation.start();
     }
 
     private void setIcon(int icon) {
-        Drawable drawable = getResources().getDrawable(icon);
+        Drawable drawable = ResourcesCompat.getDrawable(getResources(), icon, getContext().getTheme());
         if (drawable != null) {
             int padding = (getWidth() / 2) - (drawable.getIntrinsicWidth() / 2);
             setCompoundDrawablesWithIntrinsicBounds(icon, 0, 0, 0);
@@ -529,8 +530,7 @@ public class PacketCaptureButton extends Button {
     /**
      * Set the View's background. Masks the API changes made in Jelly Bean.
      */
-    @SuppressWarnings("deprecation")
-    @SuppressLint("NewApi")
+    @SuppressLint({"ObsoleteSdkInt"})
     public void setBackgroundCompat(Drawable drawable) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
             setBackground(drawable);

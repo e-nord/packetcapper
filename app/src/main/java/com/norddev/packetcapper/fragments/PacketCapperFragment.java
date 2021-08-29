@@ -71,9 +71,10 @@ public class PacketCapperFragment extends Fragment implements PermissionListener
     }
 
     @Override
-    public void onAttach(Context context) {
+    public void onAttach(@NonNull Context context) {
         super.onAttach(context);
         mActivity = (PacketCapperActivity) getActivity();
+        assert mActivity != null;
         mTCPDump = ((PacketCapperApplication)mActivity.getApplication()).getTCPDump();
 
         checkForSU(getContext());
@@ -105,7 +106,7 @@ public class PacketCapperFragment extends Fragment implements PermissionListener
         mCaptureInfo.setVisibility(View.INVISIBLE);
 
         mCaptureButton.setIndeterminateProgressMode(true);
-        mCaptureButton.setOnClickListener(v -> Dexter.withActivity(getActivity())
+        mCaptureButton.setOnClickListener(v -> Dexter.withContext(getActivity())
                 .withPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
                 .withListener(PacketCapperFragment.this)
                 .check());
@@ -239,10 +240,12 @@ public class PacketCapperFragment extends Fragment implements PermissionListener
     }
 
     private void extractTCPDump() {
-        if (!mTCPDump.getExecutable().exists()) {
+        if (!mTCPDump.getExecutable().exists() || !mTCPDump.getExecutable().canExecute()) {
             AssetHelper task = new AssetHelper(getContext(), mTCPDump.getExecutable().getName());
             task.setMakeExecutable(true);
             task.execute(mTCPDump.getExecutable());
+        } else {
+            Log.i(TAG, String.format("tcpdump executable exists: %s", mTCPDump.getExecutable()));
         }
     }
 
